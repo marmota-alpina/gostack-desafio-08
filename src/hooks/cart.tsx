@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 
 import AsyncStorage from '@react-native-community/async-storage';
+import { wait } from '@testing-library/react-native';
 
 interface Product {
   id: string;
@@ -30,23 +31,75 @@ const CartProvider: React.FC = ({ children }) => {
 
   useEffect(() => {
     async function loadProducts(): Promise<void> {
-      // TODO LOAD ITEMS FROM ASYNC STORAGE
+      const storageProducts = await AsyncStorage.getItem('@appStore:products');
+      if(storageProducts){
+        setProducts(JSON.parse(storageProducts));
+      }
     }
 
     loadProducts();
   }, []);
 
-  const addToCart = useCallback(async product => {
-    // TODO ADD A NEW ITEM TO THE CART
-  }, []);
+  const addToCart = useCallback(async (product:Product) => {
+    let newProducts: Product[];
+    if(products){
+      const productIndex = products.findIndex (item => item.id===product.id)
+      if(productIndex<0){
+        const newProduct = {...product};
+        newProduct.quantity = 1;
+        newProducts = [...products,newProduct];
+        setProducts(newProducts);
+      }else{
+        newProducts = [...products]
+        newProducts[productIndex].quantity+=1;
+        setProducts(newProducts);
+      }
+    }else{
+      const newProduct = {...product};
+      newProduct.quantity = 1;
+      newProducts = [newProduct];
+      setProducts(newProducts);
+    }
+
+    await AsyncStorage.setItem(
+      '@appStore:products',
+      JSON.stringify(products)
+    );
+
+  }, [products]);
 
   const increment = useCallback(async id => {
-    // TODO INCREMENTS A PRODUCT QUANTITY IN THE CART
-  }, []);
+    const productIndex = products.findIndex (item => item.id===id)
+    if(productIndex<0){
+      return;
+    }
+
+    const newProducts = [...products]
+    newProducts[productIndex].quantity+=1;
+    setProducts(newProducts);
+    await AsyncStorage.setItem(
+      '@appStore:products',
+      JSON.stringify(products)
+    );
+  }, [products]);
 
   const decrement = useCallback(async id => {
-    // TODO DECREMENTS A PRODUCT QUANTITY IN THE CART
-  }, []);
+    const productIndex = products.findIndex (item => item.id===id)
+    if(productIndex<0){
+      return;
+    }
+    const total = products[productIndex].quantity;
+    if(total<=0)
+      return;
+
+    const newProducts = [...products]
+    newProducts[productIndex].quantity-=1;
+    setProducts(newProducts);
+    await AsyncStorage.setItem(
+      '@appStore:products',
+      JSON.stringify(products)
+    );
+  }, [products]);
 
   const value = React.useMemo(
     () => ({ addToCart, increment, decrement, products }),
